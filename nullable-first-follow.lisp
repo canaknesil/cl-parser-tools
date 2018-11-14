@@ -31,6 +31,18 @@
 	 (if (not (cdr (assoc sym nullable)))
 	     (setf all-null-p nil)))
     all-null-p))
+
+(defun segments-from-case-1 (syms nullable)
+  ;; TODO
+  nil)
+
+(defun segments-from-case-2 (syms nullable)
+  ;; TODO
+  nil)
+
+(defun segments-from-case-3 (syms nullable)
+  ;; TODO
+  nil)
 	
 ;;;; INTERFACE
 
@@ -73,6 +85,18 @@
 		    ;; 2: Try to find a second non-nullable.
 		    ;;    If find, perform case 3.
 		    ;;    If not, perform case 2.
+		    ;; Case 1
+		    (let ((segs (segments-from-case-1 rhs nullable)))
+		      ;;TODO
+		      nil)
+
+		    (let ((segs (segments-from-case-2 rhs nullable)))
+		      ;;TODO
+		      nil)
+
+		    (let ((segs (segments-from-case-3 rhs nullable)))
+		      ;;TODO
+		      nil)
 		    
 		    ))
 	    
