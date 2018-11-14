@@ -65,9 +65,18 @@
 		      (rhs (cdr p)))
 		  
 		    (if (or (eql rhs nil) (all-nullable-p rhs nullable))
-			(set-alist-data nullable (car p) t))))
+			(set-alist-data nullable (car p) t))
 
-		    productions)
+		    ;; Iterate the rhs.
+		    ;; 1: Try to find a non-nullable from left.
+		    ;;    If find, perform case 1 and continue.
+		    ;; 2: Try to find a second non-nullable.
+		    ;;    If find, perform case 3.
+		    ;;    If not, perform case 2.
+		    
+		    ))
+	    
+	    productions)
 
 	 until (equal (list nullable first follow)
 		      (list nullable-old first-old follow-old)))
