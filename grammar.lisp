@@ -44,3 +44,22 @@ right hand side."
   "Returns productions with the non-terminal sym."
   (remove-if-not #'(lambda (p) (eql (car p) sym))
 		 grammar))
+
+(defun get-non-terminals (grammar)
+  "Return a list of non-terminals in the grammar."
+  (remove-duplicates
+   (mapcar #'(lambda (p) (car p))
+	   grammar)))
+
+(defun get-all-symbols (grammar)
+  "Returns all the symbols in the grammar."
+  (let ((syms nil))
+    (mapcar #'(lambda (p) (setf syms (append syms p)))
+	    grammar)
+    (remove-duplicates syms)))
+
+(defun get-terminals (grammar)
+  "Returns all the terminals in the grammer."
+  (set-difference (get-all-symbols grammar)
+		  (get-non-terminals grammar)))
+      
