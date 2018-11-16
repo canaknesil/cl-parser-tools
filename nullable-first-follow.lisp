@@ -101,6 +101,8 @@
 	 (setf plist (append plist (list k (gensym)))))
     plist))
 
+;; ABSTRACTION LEAK! copy-run and compare-fun expressions
+;; may be executed more than once.
 (defmacro until-no-change-at ((&rest objs) copy-fun compare-fun &body body)
   (let ((old-sym (make-gensym-plist objs)))
     `(let (,@(loop for obj in objs collecting
