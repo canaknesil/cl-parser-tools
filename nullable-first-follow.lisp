@@ -17,9 +17,15 @@
   `(setf ,var (copy-tree ,set)))
 
 ;;; Assume that each data is a set.
-(defun union-alist-data (alist key data)
+(defun add-alist-data (alist key data)
   (let ((pair (assoc key alist)))
-    (setf (cdr pair) (union (list data) (cdr pair)))))
+    (setf (cdr pair) (union data (cdr pair)))))
+
+(defun add-alist-data-atom (alist key atom)
+  (add-alist-data alist key (list atom)))
+
+(defun union-alist-data (alist-1 key-1 alist-2 key-2)
+  (add-alist-data alist-1 key-1 (cdr (assoc key-2 alist-2))))
 
 (defun set-alist-data (alist key data)
   (let ((pair (assoc key alist)))
@@ -33,16 +39,51 @@
     all-null-p))
 
 (defun segments-from-case-1 (syms nullable)
-  ;; TODO
-  nil)
+  "Returns list of symbols in syms whose left is all nullable."
+  (if (eql syms nil) nil
+      (let ((sym (car syms)))
+	(if (cdr (assoc sym nullable))
+	    (cons sym (segments-from-case-1 (cdr syms) nullable))
+	    (cons sym nil)))))
 
 (defun segments-from-case-2 (syms nullable)
-  ;; TODO
-  nil)
+  "Returns list of symbols in syms whose right is all nullable."
+  (segments-from-case-1 (reverse syms) nullable))
+
+(defun gen-pair-with-sym-and-list (sym list)
+  (if (eql list nil) nil
+      (cons (cons sym (car list))
+	    (gen-pair-with-sym-and-list sym (cdr list)))))
 
 (defun segments-from-case-3 (syms nullable)
-  ;; TODO
-  nil)
+  "Returns a list of pair of symbols with zero or more nullable symbols between them."
+  (if (eql syms nil) nil
+      (let ((sym (car syms))
+	    (rest (cdr syms)))
+	(append (gen-pair-with-sym-and-list
+		 sym
+		 (segments-from-case-1 rest nullable))
+		(segments-from-case-3 rest nullable)))))
+
+(defun set-equal (s1 s2)
+  (not (set-difference s1 s2)))
+
+(defun alist-of-set-equal (a1 a2)
+  (let ((is-equal t))
+    (loop for p in a1 doing
+	 (let* ((k (car p))
+		(v (cdr p))
+		(p2 (assoc k a2)))
+	   (unless p2
+	     (setf is-equal nil)
+	     (return))
+	   (unless (if (listp v)
+		       (set-equal v (cdr p2))
+		       (eql v (cdr p2)))
+	     (setf is-equal nil)
+	     (return))))
+    is-equal))
+	 
 	
 ;;;; INTERFACE
 
@@ -62,7 +103,7 @@
 	  (first-old (create-alist all-syms nil))
 	  (follow-old (create-alist all-syms nil)))
 
-      (mapcar #'(lambda (ter) (union-alist-data first ter ter))
+      (mapcar #'(lambda (ter) (add-alist-data-atom first ter ter))
 	      terms)
       
       (loop do
@@ -71,6 +112,8 @@
 	   (cpytree follow-old follow)
 	   (print-sets nullable first follow)
 
+	   ;(read)
+	   
 	   (mapcar
 	    #'(lambda (p)
 		(let ((lhs (car p))
@@ -79,31 +122,34 @@
 		    (if (or (eql rhs nil) (all-nullable-p rhs nullable))
 			(set-alist-data nullable (car p) t))
 
-		    ;; Iterate the rhs.
-		    ;; 1: Try to find a non-nullable from left.
-		    ;;    If find, perform case 1 and continue.
-		    ;; 2: Try to find a second non-nullable.
-		    ;;    If find, perform case 3.
-		    ;;    If not, perform case 2.
-		    ;; Case 1
-		    (let ((segs (segments-from-case-1 rhs nullable)))
-		      ;;TODO
-		      nil)
+		    (mapcar
+		     #'(lambda (s)
+			 (union-alist-data first lhs
+					   first s))
+		     (segments-from-case-1 rhs nullable))
 
-		    (let ((segs (segments-from-case-2 rhs nullable)))
-		      ;;TODO
-		      nil)
+		    (mapcar
+		     #'(lambda (s)
+			 (union-alist-data follow s
+					   follow lhs))
+		     (segments-from-case-2 rhs nullable))
 
-		    (let ((segs (segments-from-case-3 rhs nullable)))
-		      ;;TODO
-		      nil)
+		    (mapcar
+		     #'(lambda (p)
+			 (union-alist-data follow (car p)
+					   first (cdr p)))
+		     (segments-from-case-3 (print rhs) nullable))
+
+		    
+		    
 		    
 		    ))
 	    
 	    productions)
 
-	 until (equal (list nullable first follow)
-		      (list nullable-old first-old follow-old)))
+	 until (and (alist-of-set-equal nullable nullable-old)
+		    (alist-of-set-equal first first-old)
+		    (alist-of-set-equal follow follow-old)))
       
       (list :nullable nullable
 	    :first first
