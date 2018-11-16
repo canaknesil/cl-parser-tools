@@ -1,12 +1,23 @@
 (load "grammar.lisp")
 
 
+(defun print-set (name index list)
+  (format t "~a(~a) = {" name index)
+  (unless (eql list nil)
+    (format t "~a" (car list))
+    (mapcar #'(lambda (i)
+		(format t ", ~a" i))
+	    (cdr list)))
+  (format t "}~%"))
 
-;;; TODO: Make print outs human readible.
 (defun print-sets (nullable first follow)
-  (format t "nullable = ~a~%" nullable)
-  (format t "FIRST = ~a~%" first)
-  (format t "FOLLOW = ~a~%~%" follow))
+  (mapcar #'(lambda (p)
+	      (format t "nullable(~a) = ~a~%"
+		      (car p) (if (eql (cdr p) nil) "f" "t")))
+	  nullable)
+  (mapcar #'(lambda (p) (print-set "FIRST" (car p) (cdr p))) first)
+  (mapcar #'(lambda (p) (print-set "FOLLOW" (car p) (cdr p))) follow)
+  (format t "~%"))
 
 (defun create-alist (keys init)
   (let* ((n (length keys))
@@ -83,14 +94,30 @@
 	     (setf is-equal nil)
 	     (return))))
     is-equal))
-	 
+
+(defun make-gensym-plist (keys)
+  (let ((plist nil))
+    (loop for k in keys doing
+	 (setf plist (append plist (list k (gensym)))))
+    plist))
+
+(defmacro until-no-change-at ((&rest objs) copy-fun compare-fun &body body)
+  (let ((old-sym (make-gensym-plist objs)))
+    `(let (,@(loop for obj in objs collecting
+		  `(,(getf old-sym obj) 'dummy)))
+       (loop do
+	    ,@(loop for obj in objs collecting
+		   `(,copy-fun ,(getf old-sym obj) ,obj))
+	    ,@body
+	  until (and ,@(loop for obj in objs collecting
+			    `(,compare-fun ,obj ,(getf old-sym obj))))))))
+     
 	
 ;;;; INTERFACE
 
-(defun nullable-first-follow (grammar)
+(defun nullable-first-follow-long (grammar)
   "Returns a property list with properties :nullable, :first, and :follow."
   (let ((terms (get-terminals grammar))
-	(non-terms (get-non-terminals grammar))
 	(all-syms (get-all-symbols grammar))
 	(productions (get-production-list grammar)))
 
@@ -111,8 +138,6 @@
 	   (cpytree first-old first)
 	   (cpytree follow-old follow)
 	   (print-sets nullable first follow)
-
-	   ;(read)
 	   
 	   (mapcar
 	    #'(lambda (p)
@@ -138,18 +163,65 @@
 		     #'(lambda (p)
 			 (union-alist-data follow (car p)
 					   first (cdr p)))
-		     (segments-from-case-3 (print rhs) nullable))
-
-		    
-		    
-		    
-		    ))
+		     (segments-from-case-3 rhs nullable))))
 	    
 	    productions)
 
 	 until (and (alist-of-set-equal nullable nullable-old)
 		    (alist-of-set-equal first first-old)
 		    (alist-of-set-equal follow follow-old)))
+      
+      (list :nullable nullable
+	    :first first
+	    :follow follow))))
+
+
+(defun nullable-first-follow (grammar)
+  "Returns a property list with properties :nullable, :first, and :follow."
+  (let ((terms (get-terminals grammar))
+	(all-syms (get-all-symbols grammar))
+	(productions (get-production-list grammar)))
+
+    ;; THE ALGORITHM AT LAST
+    
+    (let ((nullable (create-alist all-syms nil))
+	  (first (create-alist all-syms nil))
+	  (follow (create-alist all-syms nil)))
+
+      (mapcar #'(lambda (ter) (add-alist-data-atom first ter ter))
+	      terms)
+
+      (until-no-change-at (nullable first follow) cpytree alist-of-set-equal
+
+	(print-sets nullable first follow)
+	
+	(mapcar
+	 #'(lambda (p)
+	     (let ((lhs (car p))
+		   (rhs (cdr p)))
+	       
+	       (if (or (eql rhs nil) (all-nullable-p rhs nullable))
+		   (set-alist-data nullable (car p) t))
+	       
+	       (mapcar
+		#'(lambda (s)
+		    (union-alist-data first lhs
+				      first s))
+		(segments-from-case-1 rhs nullable))
+	       
+	       (mapcar
+		#'(lambda (s)
+		    (union-alist-data follow s
+				      follow lhs))
+		(segments-from-case-2 rhs nullable))
+	       
+	       (mapcar
+		#'(lambda (p)
+		    (union-alist-data follow (car p)
+				      first (cdr p)))
+		(segments-from-case-3 rhs nullable))))
+	 
+	 productions))
       
       (list :nullable nullable
 	    :first first

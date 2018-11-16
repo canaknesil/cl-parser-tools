@@ -15,8 +15,9 @@
 	#'(lambda (s)
 	    (if (listp s)
 		(error "Terminals and non-terminals must not be
-lists!~%~%~a~%"
-		       s))) p)) production-list)
+lists!~%~%~a~%" s)))
+	p))
+   production-list)
   production-list)
 
 ;;;; INTERFACE
@@ -41,7 +42,7 @@ right hand side."
   grammar)
 
 (defun get-productions-with (sym grammar)
-  "Returns productions with the non-terminal sym."
+  "Returns productions of the non-terminal sym."
   (remove-if-not #'(lambda (p) (eql (car p) sym))
 		 grammar))
 
