@@ -115,67 +115,6 @@
 	
 ;;;; INTERFACE
 
-(defun nullable-first-follow-long (grammar)
-  "Returns a property list with properties :nullable, :first, and :follow."
-  (let ((terms (get-terminals grammar))
-	(all-syms (get-all-symbols grammar))
-	(productions (get-production-list grammar)))
-
-    ;; THE ALGORITHM AT LAST
-    
-    (let ((nullable (create-alist all-syms nil))
-	  (first (create-alist all-syms nil))
-	  (follow (create-alist all-syms nil))
-	  (nullable-old (create-alist all-syms nil))
-	  (first-old (create-alist all-syms nil))
-	  (follow-old (create-alist all-syms nil)))
-
-      (mapcar #'(lambda (ter) (add-alist-data-atom first ter ter))
-	      terms)
-      
-      (loop do
-	   (cpytree nullable-old nullable)
-	   (cpytree first-old first)
-	   (cpytree follow-old follow)
-	   (print-sets nullable first follow)
-	   
-	   (mapcar
-	    #'(lambda (p)
-		(let ((lhs (car p))
-		      (rhs (cdr p)))
-		  
-		    (if (or (eql rhs nil) (all-nullable-p rhs nullable))
-			(set-alist-data nullable (car p) t))
-
-		    (mapcar
-		     #'(lambda (s)
-			 (union-alist-data first lhs
-					   first s))
-		     (segments-from-case-1 rhs nullable))
-
-		    (mapcar
-		     #'(lambda (s)
-			 (union-alist-data follow s
-					   follow lhs))
-		     (segments-from-case-2 rhs nullable))
-
-		    (mapcar
-		     #'(lambda (p)
-			 (union-alist-data follow (car p)
-					   first (cdr p)))
-		     (segments-from-case-3 rhs nullable))))
-	    
-	    productions)
-
-	 until (and (alist-of-set-equal nullable nullable-old)
-		    (alist-of-set-equal first first-old)
-		    (alist-of-set-equal follow follow-old)))
-      
-      (list :nullable nullable
-	    :first first
-	    :follow follow))))
-
-
 (defun nullable-first-follow (grammar)
   "Returns a property list with properties :nullable, :first, and :follow."
   (let ((terms (get-terminals grammar))
@@ -183,7 +122,6 @@
 	(productions (get-production-list grammar)))
 
     ;; THE ALGORITHM AT LAST
-    
     (let ((nullable (create-alist all-syms nil))
 	  (first (create-alist all-syms nil))
 	  (follow (create-alist all-syms nil)))
@@ -192,9 +130,7 @@
 	      terms)
 
       (until-no-change-at (nullable first follow) cpytree alist-of-set-equal
-
 	(print-sets nullable first follow)
-	
 	(mapcar
 	 #'(lambda (p)
 	     (let ((lhs (car p))
@@ -220,7 +156,6 @@
 		    (union-alist-data follow (car p)
 				      first (cdr p)))
 		(segments-from-case-3 rhs nullable))))
-	 
 	 productions))
       
       (list :nullable nullable
