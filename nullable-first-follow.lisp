@@ -103,8 +103,10 @@
 
 ;; ABSTRACTION LEAK! copy-run and compare-fun expressions
 ;; may be executed more than once.
-(defmacro until-no-change-at ((&rest objs) copy-fun compare-fun &body body)
-  (let ((old-sym (make-gensym-plist objs)))
+(defmacro until-no-change-at ((&rest objs) _copy-fun _compare-fun &body body)
+  (let ((old-sym (make-gensym-plist objs))
+	(copy-fun _copy-fun)
+	(compare-fun _compare-fun))
     `(let (,@(loop for obj in objs collecting
 		  `(,(getf old-sym obj) 'dummy)))
        (loop do
