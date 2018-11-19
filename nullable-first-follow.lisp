@@ -24,9 +24,6 @@
 	 (vals (make-list n :initial-element init)))
     (pairlis keys vals)))
 
-(defmacro cpytree (var set)
-  `(setf ,var (copy-tree ,set)))
-
 ;;; Assume that each data is a set.
 (defun add-alist-data (alist key data)
   (let ((pair (assoc key alist)))
@@ -101,20 +98,22 @@
 	 (setf plist (append plist (list k (gensym)))))
     plist))
 
-;; ABSTRACTION LEAK! copy-run and compare-fun expressions
-;; may be executed more than once.
-(defmacro until-no-change-at ((&rest objs) _copy-fun _compare-fun &body body)
+(defmacro until-no-change-at ((&rest objs) copy-fun compare-fun &body body)
   (let ((old-sym (make-gensym-plist objs))
-	(copy-fun _copy-fun)
-	(compare-fun _compare-fun))
+	(copy-fun-sym (gensym))
+	(compare-fun-sym (gensym)))
     `(let (,@(loop for obj in objs collecting
-		  `(,(getf old-sym obj) 'dummy)))
+		  `(,(getf old-sym obj) 'dummy))
+	   (,copy-fun-sym ,copy-fun)
+	   (,compare-fun-sym ,compare-fun))
        (loop do
 	    ,@(loop for obj in objs collecting
-		   `(,copy-fun ,(getf old-sym obj) ,obj))
+		   `(setf ,(getf old-sym obj) (funcall ,copy-fun-sym ,obj)))
 	    ,@body
 	  until (and ,@(loop for obj in objs collecting
-			    `(,compare-fun ,obj ,(getf old-sym obj))))))))
+			    `(funcall ,compare-fun-sym
+				      ,obj
+				      ,(getf old-sym obj))))))))
      
 	
 ;;;; INTERFACE
@@ -133,7 +132,8 @@
       (mapcar #'(lambda (ter) (add-alist-data-atom first ter ter))
 	      terms)
 
-      (until-no-change-at (nullable first follow) cpytree alist-of-set-equal
+      (until-no-change-at (nullable first follow)
+	  #'copy-tree #'alist-of-set-equal
 	(print-sets nullable first follow)
 	(mapcar
 	 #'(lambda (p)
