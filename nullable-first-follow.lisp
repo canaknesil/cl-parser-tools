@@ -1,4 +1,4 @@
-(load "grammar.lisp")
+(load (merge-pathnames "grammar.lisp" *load-truename*))
 
 
 (defun print-set (name index list)
